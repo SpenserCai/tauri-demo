@@ -3,7 +3,7 @@
  * @Date: 2024-12-17 09:56:32
  * @version: 
  * @LastEditors: SpenserCai
- * @LastEditTime: 2024-12-17 11:31:08
+ * @LastEditTime: 2024-12-17 11:40:32
  * @Description: file content
 -->
 <template>
@@ -41,9 +41,12 @@ function openWeb() {
 function openWebview() {
   webview.value = new WebviewWindow('my-label', {
     url: url.value,
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
   });
   // 网页内居中显示
   webview.value.center();
+
+  // 设置UA
   
   webview.value.once('tauri://created', function () {
     // webview successfully created
