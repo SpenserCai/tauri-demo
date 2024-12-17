@@ -83,13 +83,14 @@ fn _encode_wbi(
     query + &format!("&w_rid={}", web_sign)
 }
 
-pub fn get_wbi_keys() -> Result<(String, String), reqwest::Error> {
+pub fn get_wbi_keys(sessdata: Option<String>) -> Result<(String, String), reqwest::Error> {
     let client = reqwest::blocking::Client::new();
+    let sessdata = sessdata.unwrap_or_else(|| "xxxxxx".to_string());
     let ResWbi { data: Data { wbi_img } } = client
         .get("https://api.bilibili.com/x/web-interface/nav")
         .header(reqwest::header::USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
         .header("Referer", "https://www.bilibili.com/")
-        .header("Cookie", "SESSDATA=xxxxxx")
+        .header("Cookie", format!("SESSDATA={}", sessdata))
         .send()?
         .json::<ResWbi>()?;
     Ok((

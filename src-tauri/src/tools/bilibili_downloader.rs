@@ -5,7 +5,7 @@ use core::result::Result;
  * @Date: 2024-12-16 15:56:17
  * @version: 
  * @LastEditors: SpenserCai
- * @LastEditTime: 2024-12-16 22:40:16
+ * @LastEditTime: 2024-12-17 14:02:31
  * @Description: file content
  */
 // use env_logger::Env;
@@ -30,7 +30,7 @@ use crate::tools::bilibili_wbi;
 //     title: String,
 // }
 pub struct Bilibili {
-    pub url: String,
+    // pub url: String,
     // pub api_playurl: String,
     // pub api_view: String,
     pub real_url: String,
@@ -39,8 +39,9 @@ pub struct Bilibili {
     pub cid: String,
     pub aid: String,
     pub play_url: String,
-    pub bvid: String,
+    // pub bvid: String,
     pub title: String,
+    pub play_info: Value,
 }
 
 impl Bilibili {
@@ -60,18 +61,35 @@ impl Bilibili {
             aid: "".to_string(),
             cid_url: cid_base_url,
             play_url: play_url,
-            url: url,
+            // url: url,
             real_url: "".to_string(),
-            bvid: bvid,
+            // bvid: bvid,
             title: "".to_string(),
-
+            play_info: Value::Null,
         }
+    }
+
+    // check is_bilibili_ok 如果错误（code != 0）则返回错误信息否则则是ok（染回可以用Result）
+    fn is_bilibili_ok(&self, json: &Value) -> Result<(), Box<dyn std::error::Error>> {
+        // 先判断是否为空
+        if json.is_null() {
+            return Err("Response is null".into());
+        }
+        let code = json["code"].as_i64().unwrap();
+        if code != 0 {
+            let message = json["message"].as_str().unwrap();
+            return Err(message.into());
+        }
+        Ok(())
     }
 
     pub fn get_cid(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         info!("Getting CID for URL: {}", self.cid_url.clone());
         let r = self.cli.get(&self.cid_url).send()?;
         let json: Value = from_str(&r.text()?).unwrap();
+        if let Err(e) = self.is_bilibili_ok(&json) {
+            return Err(e);
+        }
         // println!("{}", serde_json::to_string_pretty(&json).unwrap());
         let title = json["data"]["title"].as_str().unwrap();
         let cid = json["data"]["cid"].as_u64().unwrap().to_string();
@@ -82,8 +100,8 @@ impl Bilibili {
         Ok(())
     }
 
-    pub fn get_real_url(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let keys = bilibili_wbi::get_wbi_keys().unwrap();
+    pub fn get_play_info(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let keys = bilibili_wbi::get_wbi_keys(None).unwrap();
         info!("Keys: {:?}", keys);
         let params = vec![
             ("avid", self.aid.clone()), 
@@ -105,10 +123,20 @@ impl Bilibili {
             .header("Referer", "https://www.bilibili.com/")
             .send()?;
         let json: Value = from_str(&r.text()?).unwrap();
-        // 格式化输出json
-        info!("{}", serde_json::to_string_pretty(&json).unwrap());
-        // let json:Result<Value, Box<dyn std::error::Error>> = self.get_play_json();
-        // let json = json.unwrap();
+        // 判断是否为空
+        if json.is_null() {
+            return Err("Play info is null".into());
+        }
+        self.play_info = json;
+        Ok(())
+    }
+
+    pub fn get_real_url(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let is_ok = self.get_play_info().is_ok();
+        if !is_ok {
+            return Err("Get play info failed".into());
+        }
+        let json = &self.play_info;
         let durl = json["data"]["durl"][0]["url"].as_str().unwrap();
         self.real_url = durl.to_string();
         Ok(())
